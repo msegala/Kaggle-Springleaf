@@ -1,0 +1,220 @@
+library(caret)
+library(readr)
+library(xgboost)
+library(ggplot2)
+library(R.utils)
+library(gridExtra)
+library(lubridate)
+library(data.table)
+library(Matrix)
+require(plyr)
+require(Hmisc)
+library(maps)
+library(maptools)
+library(sp)
+library(corrplot)
+set.seed(294)
+
+cat("reading the train and test data\n")
+path = "/Users/msegala/Documents/Personal/Kaggle/Springleaf/"
+
+train <- read_csv(paste0(path, "train.csv", collapse = ""), n_max = 20000)
+
+y = train$target
+# remove the id and target
+train = subset(train, select=-c(ID, target))
+# get the rowcount
+row_count = countLines(paste0(path, "train.csv", collapse = "")) 
+cat("Row count : ", row_count[1], "; Predictor column count : ", ncol(train))
+
+#The proportion of NA values.
+length(train[is.na(train)])/(ncol(train)*nrow(train)) 
+
+#Check for dupicate rows.
+nrow(train) - nrow(unique(train))
+
+#Lets look at the columns with only one unique value.
+col_ct = sapply(train, function(x) length(unique(x)))
+cat("Constant feature count:", length(col_ct[col_ct==1]))
+
+# we can just remove these columns
+train = train[, !names(train) %in% names(col_ct[col_ct==1])]
+
+#Identify and separate the numeric and non numeric rows.
+train_numr = train[, sapply(train, is.numeric)]
+train_char = train[, sapply(train, is.character)]
+cat("Numerical column count : ", dim(train_numr)[2], 
+    "; Character column count : ", dim(train_char)[2])
+
+#Lets digs into the character features.
+str(lapply(train_char, unique), vec.len = 4)
+
+#It looks like NA is represented in character columns by -1 or [] or blank values, 
+#lets convert these to explicit NAs. Not entirely sure this is the right thing to do as there are real NA values, 
+# as well as -1 values already existing, however it can be tested in predictive performance.
+train_char[train_char==-1] = NA
+train_char[train_char==""] = NA
+train_char[train_char=="[]"] = NA
+
+#We place the date columns in a new dataframe and parse the dates
+train_date = train_char[,grep("JAN1|FEB1|MAR1", train_char),]
+
+
+#Now lets separate out the dates from the character columns and look at them further.
+train_char = train_char[, !colnames(train_char) %in% colnames(train_date)]
+train_date = sapply(train_date, function(x) strptime(x, "%d%B%y:%H:%M:%S"))
+train_date = do.call(cbind.data.frame, train_date)
+
+#Take out the times to a different data frame.
+train_time = train_date[,colnames(train_date) %in% c("VAR_0204","VAR_0217")]
+train_time = data.frame(sapply(train_time, function(x) strftime(x, "%H:%M:%S")))
+train_hour = as.data.frame(sapply(train_time, function(x) as.numeric(as.character(substr( x ,1, 2)))))
+
+#Plot histogram of dates.
+par(mar=c(2,2,2,2),mfrow=c(4,4))
+for(i in 1:16) hist(train_date[,i], "weeks", format = "%d %b %y", main = colnames(train_date)[i], xlab="", ylab="")
+
+
+#Plot histogram of times.
+par(mar=c(2,2,2,2),mfrow=c(1,2))
+for(i in 1:2) hist(train_hour[,i], main = paste(colnames(train_hour)[i], "hourly"), breaks = c(0:24), xlab="", ylab="")
+
+
+#Here we take a look at the geographical break down of the state features.
+mapUSA <- map('state', fill=TRUE, plot=FALSE)
+nms <- sapply(strsplit(mapUSA$names,  ':'),  function(x)x[1])
+USApolygons <- map2SpatialPolygons(mapUSA,  IDs = nms,  CRS('+proj=longlat'))
+
+mapStates = function(df, feat){
+  dat = data.frame(table(df[,feat]))
+  names(dat) = c("state.abb", "value")
+  dat$states <- tolower(state.name[match(dat$state.abb,  state.abb)])
+  
+  
+  idx <- match(unique(nms),  dat$states)
+  dat2 <- data.frame(value = dat$value[idx], state = unique(nms))
+  row.names(dat2) <- unique(nms) 
+  USAsp <- SpatialPolygonsDataFrame(USApolygons,  data = dat2)
+  spplot(USAsp['value'], main=paste(feat, "value count"), col.regions=rev(heat.colors(21)))
+}
+grid.arrange(mapStates(train_char, "VAR_0274"), mapStates(train_char, "VAR_0237"),ncol=2)
+
+
+#Now lets look at the number of unique values per column.
+num_ct = sapply(train_numr, function(x) length(unique(x)))
+char_ct = sapply(train_char, function(x) length(unique(x)))
+date_ct = sapply(train_date, function(x) length(unique(x)))
+all_ct = rbind(data.frame(count=num_ct, type="Numerical"), 
+               data.frame(count=char_ct, type="Character"), 
+               data.frame(count=date_ct, type="Date"))
+# lets plot the unique values per feature
+g1 = ggplot(all_ct, aes(x = count, fill=type)) + 
+  geom_histogram(binwidth = 1, alpha=0.7, position="identity") + 
+  xlab("Unique values per feature (0-100)")+ theme(legend.position = "none") + 
+  xlim(c(0,100)) +theme(axis.title.x=element_text(size=14, ,face="bold"))
+g2 = ggplot(all_ct, aes(x = count, fill=type)) +  
+  geom_histogram(binwidth = 100, alpha=0.7, position="identity") + 
+  xlab("Unique values per feature(101+)")  + xlim(c(101,nrow(train))) +
+  theme(axis.title.x=element_text(size=14, ,face="bold"))
+grid.arrange(g1, g2, ncol=2)
+
+
+#Lets look at the number of NA’s per feature type (Numeric, Character or String).
+num_na = sapply(train_numr, function(x) sum(is.na(x)))
+char_na = sapply(train_char, function(x) sum(is.na(x)))
+date_na = sapply(train_date, function(x) sum(is.na(x)))
+all_na = rbind(data.frame(count=num_na, type="Numerical"), 
+               data.frame(count=char_na, type="Character"), 
+               data.frame(count=date_na, type="Date"))
+#table(all_na)
+all_na = data.frame(all_na)
+all_na = all_na[all_na$count>0,]
+
+breaks <- c(5,10,50,100,500,1000,2000)
+
+ggplot(all_na, aes(x = count, fill=type)) +  
+  geom_histogram(alpha=0.7) + 
+  #  scale_y_log10(limits=c(1,2000), breaks=breaks) + 
+  scale_x_log10(limits=c(1,20000), breaks=c(breaks,5000,10000,20000)) + 
+  labs(title="Histogram of feature count per NA count", size=24, face="bold") +
+  theme(plot.title = element_text(size = 16, face = "bold")) +
+  xlab("NA Count") + ylab("Feature Count")
+
+
+#Now we drill down on the numerical values. We randomly sample the rows to look at.
+set.seed(200)
+train_numr_samp = train_numr[,sample(1:ncol(train_numr),100)]
+str(lapply(train_numr_samp[,sample(1:100)], unique))
+
+
+#Lets take a look at 100 sample numerical records. 
+#We shall impute -99999999 to the missing values and check for non-unique columns
+train_numr_samp[is.na(train_numr_samp)] = -99999999
+length(colnames(train_numr[,sapply(train_numr, function(v) var(v, na.rm=TRUE)==0)]))
+
+
+#Check the highly correlated numerical values from this sampled set. 
+#We get quite different results using different metrics.
+
+#compute the correlation matrix
+descrCor_pear <-  cor(scale(train_numr_samp,center=TRUE,scale=TRUE), method="pearson")
+descrCor_spea <-  cor(scale(train_numr_samp,center=TRUE,scale=TRUE), method="spearman")
+# Kendall takes to long to run
+# descrCor_kend <-  cor(scale(train_numr_samp,center=TRUE,scale=TRUE), method="kendall")
+#visualize the matrix, clustering features by correlation index.
+corrplot(descrCor_pear, order = "hclust", mar=c(0,0,1,0), tl.pos="n", 
+         main="Pearson correlation of 100 sampled numerical features")
+corrplot(descrCor_spea, order = "hclust", mar=c(0,0,1,0), tl.pos="n", 
+         main="Spearman correlation of 100 sampled numerical features")
+
+
+#Now lets check the cumulative distribution of correlation within these 100 sampled numericalcolumns. 
+#The below plot shows the proportion of features containing a max correlation to another 
+#feature below the correlation threshold.
+corr.df = expand.grid(corr_limit=(0:100)/100, perc_feat_pear=NA, perc_feat_spea=NA)
+for(i in 0:100){
+  corr.df$perc_feat_pear[i+1]=length(findCorrelation(descrCor_pear, i/100))
+  corr.df$perc_feat_spea[i+1]=length(findCorrelation(descrCor_spea, i/100))
+}
+
+plot(corr.df$corr_limit, abs(100-corr.df$perc_feat_pear), pch=19, col="blue",
+     ylab = "Feature % falling below abs(correlation)", xlab="Absolute Correlation",
+     main="Cumulative distribution of correlation\n(Within 100 sampled numerical features)")
+abline(h=(0:10)*10, v=(0:20)*.05, col="gray", lty=3)
+points(corr.df$corr_limit, abs(100-corr.df$perc_feat_pear), pch=19, col="blue")
+points(corr.df$corr_limit, abs(100-corr.df$perc_feat_spea), pch=19, col="red")
+legend("topleft", c("Pearson", "Spearman"), col = c("blue", "red"), pch = 19, bg="white")
+
+
+#Finally lets take a look at our target.
+hist(y, main="Binary Target")
+
+
+
+
+
+#if (99 %in% unique(train[[i]]) && max(unique(train[[i]]), na.rm=TRUE) == 99) {...}
+
+train_numr[1:2,]
+
+for (f in names(train_numr)) {
+  for (i in 2:20) { #raising base 10 by this power
+    for (j in 1:4) { #some are high 9s; but also have a *98, *97, *96 format
+      if (max(train_numr[[f]],na.rm = TRUE) == 10^i - j) {
+        new_var = paste0(f, "_", 10^i - j) #create a new var to hold a dummy indicator
+        train_numr[[new_var]] <- 1*(train_numr[[f]] == 10^i - j) #populate the dummy indicator
+        train_numr[[new_var]][is.na(train_numr[[new_var]])] <- 0
+        train_numr[[f]][which(train_numr[[f]]== 10^i - j)] <- NA #NA out the original field
+      }
+      
+      
+      if (min(train_numr[[f]],na.rm = TRUE) == -10^i + j) {
+        new_var = paste0(f, "_", -10^i + j) #create a new var to hold a dummy indicator
+        train_numr[[new_var]] <- 1*(train_numr[[f]] == -10^i + j) #populate the dummy indicator
+        train_numr[[new_var]][is.na(train_numr[[new_var]])] <- 0
+        train_numr[[f]][which(train_numr[[f]]== -10^i + j)] <- NA #NA out the original field
+      }
+    }
+  }
+}
+
