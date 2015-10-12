@@ -25,7 +25,13 @@ Train different H2o models in `H2o.R`.
 
 ## Train online models
 We can train FTLR and SGD online models with `pypy FTLR.py` and `pypy SGD.py`.
-As a helper, the scripts 'pypy run_FTLR.py' and 'pypy run_SGD.py' will run multiple models. 
+As a helper, the scripts `pypy run_FTLR.py` and `pypy run_SGD.py` will run multiple models. 
+
+## Average Ensemble
+A simple improvement can be achieved by averaging all models together. 
+Run `python kaggle_avg.py "sub*.csv" "kaggle_avg.csv"` 
+Also, within the notebook `xgboost.ipynb` we can do a weighted average.
+
 
 ## Model Stacking (Two Stage Model)
 As a way to improve the final performance perform stacking with CV. 

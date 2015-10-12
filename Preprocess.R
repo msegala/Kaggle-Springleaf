@@ -8,7 +8,7 @@ library(caret)
 # -------- D A T A ---------------
 
 cat("reading the train and test data\n")
-path = "/Users/msegala/Documents/Personal/Kaggle/Springleaf/"
+path = "/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/"
 
 train <- read_csv(paste0(path, "train.csv", collapse = ""))
 y <- train$target
@@ -218,7 +218,7 @@ for (f in 1:ncol(train_nzv_corr)) {
 #### Save all the final dataframes and write to file
 #
 
-save.image("~/Documents/Personal/Kaggle/Springleaf/DataProccessing.RData")
+save.image("~/Documents/Personal/Kaggle/Kaggle-Springleaf/DataProccessing.RData")
 
 # Save NZV
 train_nzv$target <- y

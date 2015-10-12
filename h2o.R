@@ -3,7 +3,7 @@
 #install.packages("h2o", repos=(c("http://s3.amazonaws.com/h2o-release/h2o/master/1555/R", getOption("repos"))))
 #install.packages("h2o")
 
-load("~/Documents/Personal/Kaggle/Springleaf/SaveMe.RData")
+load("~/Documents/Personal/Kaggle/Kaggle-Springleaf/SaveMe.RData")
 
 library(h2o)
 library(stringr)
@@ -69,6 +69,8 @@ cvmodel <- h2o.gbm(training_frame=train, validation_frame=valid, x=c(1:(ncol(tra
                    distribution = "AUTO", type="BigData", ntrees = 100, max_depth = 3, learn_rate = 0.12, seed=seed0)
 
 
+cvmodel <- h2o.gbm(training_frame=train, validation_frame=valid, x=c(1:(ncol(train)-1)), y=ncol(train),
+                   distribution = "AUTO", type="BigData", ntrees = 1000, max_depth = 10, learn_rate = 0.01)
 
 
 cvmodel <- h2o.gbm(training_frame=train, x=c(1:(ncol(train)-1)), y=ncol(train), nfolds = 3,
@@ -221,10 +223,10 @@ for (i in 1:8){
                        distribution = "AUTO", type="BigData", ntrees = 100, max_depth = 10, learn_rate = 0.012)
   }
   else if (i == 18){
-    #AUC on training data: AUC on training data:
-    #AUC on validation data: AUC on validation data: 
+    #AUC on training data: AUC on training data: 0.9897863
+    #AUC on validation data: AUC on validation data: 0.7710762
     dlmodel <- h2o.gbm(training_frame=train, validation_frame=valid, x=c(1:(ncol(train)-1)), y=ncol(train),
-                       distribution = "AUTO", type="BigData", ntrees = 1000, max_depth = 10, learn_rate = 0.012)
+                       distribution = "AUTO", type="BigData", ntrees = 1000, max_depth = 10, learn_rate = 0.01)
   }
   
   

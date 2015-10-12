@@ -16,7 +16,7 @@ library(corrplot)
 set.seed(294)
 
 cat("reading the train and test data\n")
-path = "/Users/msegala/Documents/Personal/Kaggle/Springleaf/"
+path = "/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/"
 
 train <- read_csv(paste0(path, "train.csv", collapse = ""), n_max = 20000)
 

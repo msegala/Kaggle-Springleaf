@@ -54,10 +54,10 @@ else:
     test    = 'test_new.csv'
     output  = 'SGD_sub_3.csv'
 
-train           = '/Users/msegala/Documents/Personal/Kaggle/Springleaf/' + train
-test            = '/Users/msegala/Documents/Personal/Kaggle/Springleaf/' + test
-submission      = '/Users/msegala/Documents/Personal/Kaggle/Springleaf/output/SGD/testSet_'  + output  
-submissionTrain = '/Users/msegala/Documents/Personal/Kaggle/Springleaf/output/SGD/trainSet_' + output  
+train           = '/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/' + train
+test            = '/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/' + test
+submission      = '/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/output/SGD/testSet_'  + output  
+submissionTrain = '/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/output/SGD/trainSet_' + output  
 
 # C, feature/hash trick
 D = 2**28 + 2**22       # number of weights to use

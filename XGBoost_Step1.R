@@ -4,11 +4,12 @@ library(xgboost)
 library(readr)
 library(Ckmeans.1d.dp)
 library(caret)
+library(doParallel)
 
 # -------- D A T A ---------------
 
 cat("reading the train and test data\n")
-path = "/Users/msegala/Documents/Personal/Kaggle/Springleaf/"
+path = "/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/"
 
 #train <- read_csv(paste0(path, "train_nzv_corr.csv", collapse = ""))
 #train <- read_csv(paste0(path, "train_nzv.csv", collapse = ""))
@@ -98,47 +99,132 @@ xgval   = xgb.DMatrix(as.matrix(train[val,]),  label = y[val],  missing = -9999)
 gc()
 watchlist <- list(eval = xgval, train = xgtrain)
 
-param <- list(  objective           = "binary:logistic", 
-                eta                 = 0.005, max_depth           = 10,  subsample           = 1.0,
-                colsample_bytree    = 0.352, eval_metric         = "auc")
+#param <- list(  objective           = "binary:logistic", 
+#                eta                 = 0.005, max_depth           = 10,  subsample           = 1.0,
+#                colsample_bytree    = 0.352, eval_metric         = "auc")
 
+#param <- list(  objective           = "binary:logistic", 
+#                eta                 = 0.005, max_depth           = 12,  subsample           = 1.0,
+#                colsample_bytree    = 0.3, eval_metric         = "auc")
+
+param <- list(  objective           = "binary:logistic", 
+                eta                 = 0.005, max_depth           = 14,  subsample           = 1.0,
+                colsample_bytree    = 0.3, eval_metric         = "auc",
+                min_child_weight    = 6, gamma               = 6)
+
+
+start <- proc.time()
+#cl <- makeCluster(8)
+#registerDoParallel(cl)
 clf <- xgb.train(   params    = param,     data     = xgtrain, early.stop.round    = 22,
                     nrounds   = 5000,      verbose  = 1,   
                     watchlist = watchlist, maximize = TRUE)
+#stopCluster(cl)
+tot <- proc.time() - start
+tot
 
-#### For NZV with eta=0.005, depth=10,cols=0.352, na = -98989898
+bst <- clf$bestInd
+
+#### For NZV with eta=0.005, depth=10,cols=0.352, na = -9999
 #[2941]  eval-auc:0.791248  train-auc:0.998462
 #Stopping. Best iteration: 2920
 
+#### For Base Data with eta=0.005, depth=10,cols=0.352, na = -9999
+#Stopping. Best iteration: 2545
+
+#### For Base Data with eta=0.005, depth=12,cols=0.3, na = -9999
+#Stopping. Best iteration: 1979
+
+#### For Base Data with eta=0.005, depth=12,cols=0.3, min_child_weight= 5, gamma= 4, na = -9999
+#Stopping. Best iteration: 2379
+
+#### For Base Data + Interactiosn with eta=0.005, depth=12,cols=0.3, min_child_weight= 5, gamma= 4, na = -9999
+#Stopping. Best iteration: 2519
+
+#### For Base Data with eta=0.005, depth=14,cols=0.3, min_child_weight= 6, gamma= 6, na = -9999
+#Stopping. Best iteration: 2589
 
 ### Train on full dataset
 xgtrain = xgb.DMatrix(as.matrix(train), label = y, missing = -9999)
 watchlist <- list(train = xgtrain)
 
+#param <- list(  objective           = "binary:logistic", 
+#                eta                 = 0.005, max_depth           = 10,  subsample           = 1.0,
+#                colsample_bytree    = 0.352, eval_metric         = "auc")
+
 param <- list(  objective           = "binary:logistic", 
-                eta                 = 0.005, max_depth           = 10,  subsample           = 1.0,
-                colsample_bytree    = 0.352, eval_metric         = "auc")
+                eta                 = 0.005, max_depth           = 12,  subsample           = 1.0,
+                colsample_bytree    = 0.3, eval_metric         = "auc",
+                min_child_weight= 5, gamma= 4)
 
+start <- proc.time()
+#cl <- makeCluster(8)
+#registerDoParallel(cl)
 clf <- xgb.train(   params    = param,     data     = xgtrain,
-                    nrounds   = 2919,      verbose  = 1,   
+                    nrounds   = bst,       verbose  = 1,   
                     watchlist = watchlist)
-
-
+#stopCluster(cl)
+tot <- proc.time() - start
+tot
 
 
 xgtest <- xgb.DMatrix(as.matrix(test), missing = -9999)
-bst <- clf$bestInd
-preds_out <- predict(clf, xgtest, ntreelimit = bst)
+preds_out <- predict(clf, xgtest)
 
 sub <- read_csv(paste0(path, "sample_submission.csv", collapse = "")) 
 sub$target <- preds_out
 subversion <- 1
-#write_csv(sub, paste0(path, "submission_XGBoost_NZV_Corr_", subversion, ".csv", collapse = ""))
-#write_csv(sub, paste0(path, "submission_XGBoost_NZV_Base_", subversion, ".csv", collapse = ""))
-#write_csv(sub, paste0(path, "submission_XGBoost_NZV_Interactions_", subversion, ".csv", collapse = ""))
-
 #write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_NZV_FullTrain_Eta_0.005_Depth_10_Cols_0.352_Version_", subversion, ".csv", collapse = ""))
-write_csv(sub, paste0(path, "/output/XGBoost/test_", subversion, ".csv", collapse = ""))
+#write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_WithInteractions_FullTrain_Eta_0.005_Depth_10_Cols_0.352_Version_", subversion, ".csv", collapse = ""))
+#write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.005_Depth_10_Cols_0.352_Version_", subversion, ".csv", collapse = ""))
+#write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.0025_Depth_10_Cols_0.3_Version_", subversion, ".csv", collapse = ""))
+
+#write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.005_Depth_12_Cols_0.3_Version_", subversion, ".csv", collapse = ""))
+#write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.005_Depth_12_Cols_0.3_MinChildWeight_5_Gamma_4_Version_", subversion, ".csv", collapse = ""))
+
+#write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_WithInteractions_FullTrain_Eta_0.005_Depth_12_Cols_0.3_MinChildWeight_5_Gamma_4_Version_", subversion, ".csv", collapse = ""))
+write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.005_Depth_14_Cols_0.3_MinChildWeight_6_Gamma_6_Version_", subversion, ".csv", collapse = ""))
+
+
+
+
+
+
+
+#
+#### Boost from initial prediction (THIS DIDNT WORK.....)
+#
+### Started at 0.994093
+# Note: we need the margin value instead of transformed prediction in set_base_margin
+# do predict with output_margin=TRUE, will always give you margin values before logistic transformation
+ptrain <- predict(clf, xgtrain, outputmargin=TRUE)
+# set the base_margin property of dtrain base margin is the base prediction we will boost from
+setinfo(xgtrain, "base_margin", ptrain)
+clf_boosted <- xgb.train( params    = param,     data     = xgtrain,
+                          nrounds   = 500,       verbose  = 1,   
+                          watchlist = watchlist )
+
+bst <- clf_boosted$bestInd
+preds_out <- predict(clf_boosted, xgtest, ntreelimit = bst)
+
+sub <- read_csv(paste0(path, "sample_submission.csv", collapse = "")) 
+sub$target <- preds_out
+subversion <- 1
+write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_WithInteractions_FullTrain_Eta_0.005_Depth_10_Cols_0.352_BOOSTED_500_Version_", subversion, ".csv", collapse = ""))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

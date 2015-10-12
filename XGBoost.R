@@ -8,7 +8,7 @@ library(caret)
 # -------- D A T A ---------------
 
 cat("reading the train and test data\n")
-path = "/Users/msegala/Documents/Personal/Kaggle/Springleaf/"
+path = "/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/"
 
 train <- read_csv(paste0(path, "train.csv", collapse = ""))
 y <- train$target
