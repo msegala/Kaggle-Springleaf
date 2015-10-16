@@ -107,19 +107,22 @@ watchlist <- list(eval = xgval, train = xgtrain)
 #                eta                 = 0.005, max_depth           = 12,  subsample           = 1.0,
 #                colsample_bytree    = 0.3, eval_metric         = "auc")
 
+#param <- list(  objective           = "binary:logistic", 
+#                eta                 = 0.005, max_depth           = 14,  subsample           = 1.0,
+#                colsample_bytree    = 0.3, eval_metric         = "auc",
+#                min_child_weight    = 6, gamma               = 6)
+
 param <- list(  objective           = "binary:logistic", 
-                eta                 = 0.005, max_depth           = 14,  subsample           = 1.0,
-                colsample_bytree    = 0.3, eval_metric         = "auc",
-                min_child_weight    = 6, gamma               = 6)
+                eta                 = 0.01, max_depth           = 10,  subsample   = 0.7,
+                colsample_bytree    = 0.5, eval_metric         = "auc",
+                min_child_weight    = 6, alpha               = 4,
+                nthread=16)
 
 
 start <- proc.time()
-#cl <- makeCluster(8)
-#registerDoParallel(cl)
-clf <- xgb.train(   params    = param,     data     = xgtrain, early.stop.round    = 22,
-                    nrounds   = 5000,      verbose  = 1,   
+clf <- xgb.train(   params    = param,     data     = xgtrain, early.stop.round    = 100,
+                    nrounds   = 5000,      verbose  = 1,  print.every.n = 10, 
                     watchlist = watchlist, maximize = TRUE)
-#stopCluster(cl)
 tot <- proc.time() - start
 tot
 
@@ -144,26 +147,32 @@ bst <- clf$bestInd
 #### For Base Data with eta=0.005, depth=14,cols=0.3, min_child_weight= 6, gamma= 6, na = -9999
 #Stopping. Best iteration: 2589
 
+#### For Base Data with eta=0.01, depth=9,cols=0.5, min_child_weight=6, subsample=0.7, alpha=4, na = -9999
+#Stopping. Best iteration: 2884
+
+#### For Base Data with eta=0.01, depth=9,cols=0.5, min_child_weight=6, subsample=0.7, alpha=5, na = -9999
+#Stopping. Best iteration: 2866
+
+#### For Base Data with eta=0.01, depth=9,cols=0.5, min_child_weight=6, subsample=0.7, alpha=3, na = -9999
+#Stopping. Best iteration: 2790
+
+#### For Base Data with eta=0.01, depth=9,cols=0.5, min_child_weight=5, subsample=0.7, alpha=3, na = -9999
+#Stopping. Best iteration: 2336
+
+#### For Base Data with eta=0.01, depth=10,cols=0.5, min_child_weight=7, subsample=0.7, alpha=4, na = -9999
+#Stopping. Best iteration: 2403
+
+#### For Base Data with eta=0.01, depth=10,cols=0.5, min_child_weight=6, subsample=0.7, alpha=4, na = -9999
+#Stopping. Best iteration: 2003
+
 ### Train on full dataset
 xgtrain = xgb.DMatrix(as.matrix(train), label = y, missing = -9999)
 watchlist <- list(train = xgtrain)
 
-#param <- list(  objective           = "binary:logistic", 
-#                eta                 = 0.005, max_depth           = 10,  subsample           = 1.0,
-#                colsample_bytree    = 0.352, eval_metric         = "auc")
-
-param <- list(  objective           = "binary:logistic", 
-                eta                 = 0.005, max_depth           = 12,  subsample           = 1.0,
-                colsample_bytree    = 0.3, eval_metric         = "auc",
-                min_child_weight= 5, gamma= 4)
-
 start <- proc.time()
-#cl <- makeCluster(8)
-#registerDoParallel(cl)
 clf <- xgb.train(   params    = param,     data     = xgtrain,
-                    nrounds   = bst,       verbose  = 1,   
+                    nrounds   = bst,       verbose  = 1, print.every.n = 10,    
                     watchlist = watchlist)
-#stopCluster(cl)
 tot <- proc.time() - start
 tot
 
@@ -183,8 +192,18 @@ subversion <- 1
 #write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.005_Depth_12_Cols_0.3_MinChildWeight_5_Gamma_4_Version_", subversion, ".csv", collapse = ""))
 
 #write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_WithInteractions_FullTrain_Eta_0.005_Depth_12_Cols_0.3_MinChildWeight_5_Gamma_4_Version_", subversion, ".csv", collapse = ""))
-write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.005_Depth_14_Cols_0.3_MinChildWeight_6_Gamma_6_Version_", subversion, ".csv", collapse = ""))
+#write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.005_Depth_14_Cols_0.3_MinChildWeight_6_Gamma_6_Version_", subversion, ".csv", collapse = ""))
 
+
+
+#write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.01_Depth_9_Cols_0.5_SubSample_0.7_MinChildWeight_6_Alpha_4_Version_", subversion, ".csv", collapse = ""))
+#write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.01_Depth_9_Cols_0.5_SubSample_0.7_MinChildWeight_6_Alpha_5_Version_", subversion, ".csv", collapse = ""))
+#write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.01_Depth_9_Cols_0.5_SubSample_0.7_MinChildWeight_6_Alpha_3_Version_", subversion, ".csv", collapse = ""))
+#write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.01_Depth_9_Cols_0.5_SubSample_0.7_MinChildWeight_5_Alpha_3_Version_", subversion, ".csv", collapse = ""))
+#write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.01_Depth_10_Cols_0.5_SubSample_0.7_MinChildWeight_7_Alpha_4_Version_", subversion, ".csv", collapse = ""))
+
+# still need to submit on own
+write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.01_Depth_10_Cols_0.5_SubSample_0.7_MinChildWeight_6_Alpha_4_Version_", subversion, ".csv", collapse = ""))
 
 
 

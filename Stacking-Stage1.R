@@ -7,7 +7,9 @@
 # and then uses model 1 on the rest of the training data and
 # input to model 2.
 #
-###########################
+# THIS IS STAGE-1 OF THE STACKING PROCEDURE
+#
+######################################################
 
 
 ### Step 1:
@@ -41,9 +43,9 @@ test <- test[,-1]
 
 
 ##### MAKE IT SMALL FOR TESTING.....
-train = train[1:10000,]
-y = y[1:10000]
-test = test[1:10000,]
+#train = train[1:10000,]
+#y = y[1:10000]
+#test = test[1:10000,]
 
 
 
@@ -97,15 +99,8 @@ test[is.na(test)]   <- -9999
 train[train<0] <- -9999
 test[test<0]   <- -9999
 
-
-
-
-
-
-
-set.seed(222)
-val <- sample(1:nrow(train), 1000) #10% training data for validation
-
+#save.image("~/Documents/Personal/Kaggle/Kaggle-Springleaf/SaveMe.RData")
+#load("~/Documents/Personal/Kaggle/Kaggle-Springleaf/SaveMe.RData")
 
 # -------- h2o -------------------
 
@@ -128,25 +123,48 @@ testWL <- h2o.assign(testWL, "testWL")
 
 
 # -------- Parameters ----------------
+#set.seed(222)
+#val <- sample(1:nrow(train), round(0.3*nrow(train))) #30% training data for validation
 n_folds = 4
 verbose = TRUE
 shuffle = FALSE
+
+
+#if(shuffle){
+#  train <- train[sample(nrow(train)),]
+#}
 
 
 # -------- Setup Stacking ------------
 
 ### Returns train inidices for n_folds using StratifiedKFold
 skf = createFolds(y, k = n_folds , list = TRUE, returnTrain = TRUE)
+table(y[unlist(skf[1])])
+table(y[unlist(skf[2])])
+table(y[unlist(skf[3])])
+table(y[unlist(skf[4])])
+
 
 ### Create a list of models to run
-clfs  <- c("xgboost1", "xgboost2", "rf1", "gbm1", "glm1", "glm2", "glm3")
-types <- c("xgboost",  "xgboost",  "h2o", "h2o",  "h2o",  "h2o",   "h2o")
+#clfs  <- c("xgboost1", "xgboost2", "rf1", "gbm1", "glm1", "glm2", "glm3")
+#types <- c("xgboost",  "xgboost",  "h2o", "h2o",  "h2o",  "h2o",   "h2o")
+#clfs  <- c("rf1", "gbm1", "glm1", "glm2", "glm3")
+#types <- c("h2o", "h2o",  "h2o",  "h2o",   "h2o")
+#clfs  <- c("xgboost1")
+#types <- c("xgboost")
+#clfs  <- c("glm1", "glm2", "glm3")
+#types <- c("h2o",  "h2o",   "h2o")
+clfs  <- c("gbm1")
+types <- c("h2o")
 
 ### Pre-allocate the data
 ### For each model, add a column with N rows for each model
 dataset_blend_train = matrix(0, nrow(train), length(clfs))
 dataset_blend_test  = matrix(0, nrow(test), length(clfs))
 
+### Name the columns accordingly
+colnames(dataset_blend_test)  <- clfs
+colnames(dataset_blend_train) <- clfs
 
 ### Loop over the models to perform stage 1 stacking
 j <- 0 
@@ -168,6 +186,8 @@ for (clf in clfs){
     
     ### Extract and fit the train/test section for each fold    
     tmp_train <- unlist(skf[i])
+    tmp_train <- sample(tmp_train)
+    
     X_train = train[tmp_train,]
     y_train = y[tmp_train]
     X_test  = train[-tmp_train,]
@@ -184,19 +204,15 @@ for (clf in clfs){
       
       if (clf == "xgboost1"){
         if(i==1){cat("Running xgboost1....\n")}
-        param <- list(  objective = "binary:logistic", eta = 0.01, max_depth = 8,  
-                        subsample = 0.72, colsample_bytree = 0.74, eval_metric = "auc")
-        
-        mod <- xgb.train(   params = param, data = xgtrain_tmp, nrounds = 2, verbose = 1, 
-                            early.stop.round = 18, watchlist = watchlist, maximize = TRUE)
+        param <- list(objective = "binary:logistic", eta=0.005, depth=14,colsample_bytree=0.3, min_child_weight=6, gamma=6,
+                      colsample_bytree = 0.3, subsample = 1.0, eval_metric = "auc", early.stop.round = 100, nthread=16)
+        mod <- xgb.train(params = param, data = xgtrain_tmp, nrounds = 4000, verbose = 1, watchlist = watchlist, print.every.n = 10) #nrounds=2589                         
       }
       else if (clf == "xgboost2"){
         if(i==1){cat("Running xgboost2....\n")}
-        param <- list(  objective = "binary:logistic", eta = 0.1, max_depth = 18,  
-                        subsample = 0.72, colsample_bytree = 0.74, eval_metric = "auc")
-        
-        mod <- xgb.train(   params = param, data = xgtrain_tmp, nrounds = 2, verbose = 2, 
-                            early.stop.round = 18, watchlist = watchlist, maximize = TRUE)
+        param <- list(  objective = "binary:logistic", eta=0.005, depth=12,colsample_bytree=0.3, min_child_weight=5, gamma=4,
+                        colsample_bytree = 0.3, subsample = 1.0, eval_metric = "auc", early.stop.round = 100, nthread=16)
+        mod <- xgb.train(params = param, data = xgtrain_tmp, nrounds = 4000, verbose = 1, watchlist = watchlist, print.every.n = 10) #nrounds=2379                         
       }
       
       rm(xgtrain_tmp)
@@ -223,13 +239,13 @@ for (clf in clfs){
         if(i==1){cat("Running rf1....\n")}
         mod <-  h2o.randomForest(training_frame=X_trainWL,  
                                  key = "rf1", x=c(1:(ncol(X_trainWL)-1)), y=ncol(X_trainWL),
-                                 type="BigData", ntrees = 2, max_depth = 8, seed=42)
+                                 type="BigData", ntrees = 700, max_depth = 16) #ntrees=700
       }
       else if (clf == "gbm1"){
         if(i==1){cat("Running gbm1....\n")}
         mod <-  h2o.gbm(training_frame=X_trainWL,  
                         key = "gbm1", x=c(1:(ncol(X_trainWL)-1)), y=ncol(X_trainWL),
-                        distribution = "AUTO", type="BigData", ntrees = 2, max_depth = 10, learn_rate = 0.01)
+                        distribution = "AUTO", type="BigData", ntrees = 1000, max_depth = 10, learn_rate = 0.01) #ntrees=1000
       }
       else if (clf == "glm1"){
         if(i==1){cat("Running glm1....\n")}
@@ -249,15 +265,21 @@ for (clf in clfs){
                         x=c(1:(ncol(X_trainWL)-1)), y=ncol(X_trainWL),
                         family="gaussian", alpha = 0.5, lambda = 1e-07)
       }
-      
-      
+            
       ### Predict the probability of current folds test set and store results.
-      train_pred <- as.data.frame(h2o.predict(mod, X_testWL))[,1]
+      train_pred_h2o <- h2o.predict(mod, X_testWL)
+      train_pred <- as.data.frame(train_pred_h2o)[,1]
       dataset_blend_train[-tmp_train, j] <- train_pred
       cat("Local CV Score:", auc(y_test,train_pred),"\n")
                     
       ### Predict the probabilty for the true test set and store results
-      dataset_blend_test_j[, i] <- as.data.frame(h2o.predict(mod, testWL))[,1]      
+      test_pred_h2o <- h2o.predict(mod, testWL)
+      dataset_blend_test_j[, i] <- as.data.frame(test_pred_h2o)[,1]      
+      
+      h2o.rm(X_trainWL)
+      h2o.rm(X_testWL)
+      h2o.rm(train_pred_h2o)
+      h2o.rm(test_pred_h2o)      
     }
     
     ### Predict the probability of current folds test set and store results.
@@ -272,51 +294,8 @@ for (clf in clfs){
   ### Take mean of final holdout set folds
   dataset_blend_test[,j] = rowMeans(dataset_blend_test_j)
   cat("\n")
+
+  ### Always save results after each model, just for protection against crash
+  write.csv(dataset_blend_train,"/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/output/Intermediate_Stacking/Intermediate_stacking_GBM_train.csv",row.names = FALSE)
+  write.csv(dataset_blend_test, "/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/output/Intermediate_Stacking/Intermediate_stacking_GBM_test.csv",row.names = FALSE)
 }
-
-
-##################################################################
-#
-# Add in any data from online classifiers (SGD or FTRL)
-#
-#################################################################
-
-sgd_train1 <- read.csv("/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/output/SGD/trainSet_SGD_alpha_0.005_beta_1_L2_0_epoch_5.csv")
-sgd_test1 <- read.csv("/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/output/SGD/testSet_SGD_alpha_0.005_beta_1_L2_0_epoch_5.csv")
-
-sgd_train2 <- read.csv("/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/output/SGD/trainSet_SGD_alpha_0.005_beta_5_L2_0_epoch_5.csv")
-sgd_test2 <- read.csv("/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/output/SGD/testSet_SGD_alpha_0.005_beta_5_L2_0_epoch_5.csv")
-
-sgd_train1 <- sgd_train1[1:10000,"target"];sgd_train2 <- sgd_train2[1:10000,"target"]
-sgd_test1  <- sgd_test1[1:10000,"target"]; sgd_test2  <- sgd_test2[1:10000,"target"]
-
-
-
-##################################################################
-#
-# We can now train the 2nd stage model with the new meta features
-#
-#################################################################
-
-### Combined the orginal features with the model predictions for training set
-train_meta <- cbind(train,dataset_blend_train,sgd_train1,sgd_train2)
-
-### Combined the orginal features with the model predictions for testing set
-test_meta <- cbind(test,dataset_blend_test,sgd_test1,sgd_test2)
-
-### Build the meta classifier (this needs to be tuned as well)
-### Can also use several classifiers here and ensemble them together
-xgtrain_meta = xgb.DMatrix(as.matrix(train_meta), label = y, missing = -9999)
-gc()
-watchlist <- list(train = xgtrain_meta)
-
-param <- list(  objective = "binary:logistic", eta = 0.01, max_depth = 8,  
-                subsample = 0.72, colsample_bytree = 0.74, eval_metric = "auc")
-
-mod_meta <- xgb.train(params = param, data = xgtrain_meta, nrounds = 2, verbose = 1, watchlist = watchlist)
-
-## Make final prediction
-pred_meta <-predict(mod_meta, xgb.DMatrix(as.matrix(test_meta), missing = -9999), ntreelimit = mod_meta$bestInd)
-
-
-

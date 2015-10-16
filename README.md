@@ -36,7 +36,7 @@ Also, within the notebook `xgboost.ipynb` we can do a weighted average.
 ## Model Stacking (Two Stage Model)
 As a way to improve the final performance perform stacking with CV. 
 We can take all the XGBoost, H2o, and online models and create a two stage model.
-The script to perform model stacking is `Stacking.R`.
+The script to perform model stacking is `Stacking-Stage1.R` and `Stacking-Stage2.R`.
 
 ## Bagging
 A final improvement on the two stage model is to perform bagging on the 2nd level model.

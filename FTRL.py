@@ -49,10 +49,10 @@ else:
     test    = 'test.csv'
     output  = 'FTLR_sub_3.csv'
 
-train           = '/Users/msegala/Documents/Personal/Kaggle/Springleaf/' + train
-test            = '/Users/msegala/Documents/Personal/Kaggle/Springleaf/' + test
-submission      = '/Users/msegala/Documents/Personal/Kaggle/Springleaf/output/FTLR/testSet_'  + output  
-submissionTrain = '/Users/msegala/Documents/Personal/Kaggle/Springleaf/output/FTLR/trainSet_' + output  
+train           = '/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/' + train
+test            = '/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/' + test
+submission      = '/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/output/FTLR/testSet_'  + output  
+submissionTrain = '/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springleaf/output/FTLR/trainSet_' + output  
 
 # C, feature/hash trick
 D = 2**28 + 2**22       # number of weights to use
