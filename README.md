@@ -38,6 +38,9 @@ As a way to improve the final performance perform stacking with CV.
 We can take all the XGBoost, H2o, and online models and create a two stage model.
 The script to perform model stacking is `Stacking-Stage1.R` and `Stacking-Stage2.R`.
 
+I found that I cannot just add the fully trained online models to the blend, this caused
+huge overfitting. The final submissions did not include these models. 
+
 ## Bagging
 A final improvement on the two stage model is to perform bagging on the 2nd level model.
-This script is found in `Bagging.R`.
+This script is found in `Bagging.R`. I never ended up doing this...

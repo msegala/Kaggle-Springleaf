@@ -127,15 +127,17 @@ glm_test1  <-  read.csv("/Users/msegala/Documents/Personal/Kaggle/Kaggle-Springl
 
 ### Combined the orginal features with the model predictions for training set
 train_meta <- cbind(train,
-                    xgboost_train1,glm_train1,
-                    sgd_train1,sgd_train2,sgd_train3,sgd_train4,sgd_train5,sgd_train6,sgd_train7,sgd_train8,
-                    ftlr_train1,ftlr_train2,ftlr_train3,ftlr_train4,ftlr_train5,ftlr_train6,ftlr_train7,ftlr_train8)
+                    xgboost_train1,glm_train1
+                    #sgd_train1,sgd_train2,sgd_train3,sgd_train4,sgd_train5,sgd_train6,sgd_train7,sgd_train8,
+                    #ftlr_train1,ftlr_train2,ftlr_train3,ftlr_train4,ftlr_train5,ftlr_train6,ftlr_train7,ftlr_train8
+                    )
 
 ### Combined the orginal features with the model predictions for testing set
 test_meta <- cbind(test,
-                   xgboost_test1,glm_test1,
-                   sgd_test1,sgd_test2,sgd_test3,sgd_test4,sgd_test5,sgd_test6,sgd_test7,sgd_test8,
-                   ftlr_test1,ftlr_test2,ftlr_test3,ftlr_test4,ftlr_test5,ftlr_test6,ftlr_test7,ftlr_test8)
+                   xgboost_test1,glm_test1
+                   #sgd_test1,sgd_test2,sgd_test3,sgd_test4,sgd_test5,sgd_test6,sgd_test7,sgd_test8,
+                   #ftlr_test1,ftlr_test2,ftlr_test3,ftlr_test4,ftlr_test5,ftlr_test6,ftlr_test7,ftlr_test8
+                   )
 
 rm(train); rm(test);
 
@@ -149,9 +151,9 @@ watchlist <- list(eval = xgval, train = xgtrain)
 
 
 param <- list(  objective           = "binary:logistic", 
-                eta                 = 0.01, max_depth           = 9,  subsample   = 0.7,
+                eta                 = 0.01, max_depth           = 10,  subsample   = 0.7,
                 colsample_bytree    = 0.5, eval_metric         = "auc",
-                min_child_weight    = 6, alpha               = 4,
+                min_child_weight    = 6, alpha               = 6,
                 nthread=16)
 
 clf <- xgb.train(   params    = param,     data     = xgtrain, early.stop.round    = 100,
@@ -160,7 +162,6 @@ clf <- xgb.train(   params    = param,     data     = xgtrain, early.stop.round 
 
 
 bst <- clf$bestInd
-bst <- 500
 ### Train on full dataset
 xgtrain = xgb.DMatrix(as.matrix(train_meta), label = y, missing = -9999)
 watchlist <- list(train = xgtrain)
@@ -175,5 +176,5 @@ preds_out <- predict(clf, xgtest)
 
 sub <- read_csv(paste0(path, "sample_submission.csv", collapse = "")) 
 sub$target <- preds_out
-subversion <- 1
+subversion <- 2
 write_csv(sub, paste0(path, "/output/Stacking/submission_Stacking_", subversion, ".csv", collapse = ""))

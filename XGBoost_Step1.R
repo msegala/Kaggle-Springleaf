@@ -113,9 +113,9 @@ watchlist <- list(eval = xgval, train = xgtrain)
 #                min_child_weight    = 6, gamma               = 6)
 
 param <- list(  objective           = "binary:logistic", 
-                eta                 = 0.01, max_depth           = 10,  subsample   = 0.7,
+                eta                 = 0.01, max_depth           = 9,  subsample   = 0.7,
                 colsample_bytree    = 0.5, eval_metric         = "auc",
-                min_child_weight    = 6, alpha               = 4,
+                min_child_weight    = 6, alpha               = 4, gamma   = 2,
                 nthread=16)
 
 
@@ -165,6 +165,9 @@ bst <- clf$bestInd
 #### For Base Data with eta=0.01, depth=10,cols=0.5, min_child_weight=6, subsample=0.7, alpha=4, na = -9999
 #Stopping. Best iteration: 2003
 
+#### For Base Data with eta=0.01, depth=9,cols=0.5, min_child_weight=6, subsample=0.7, alpha=4, gamma=2, na = -9999
+#Stopping. Best iteration: 2484
+
 ### Train on full dataset
 xgtrain = xgb.DMatrix(as.matrix(train), label = y, missing = -9999)
 watchlist <- list(train = xgtrain)
@@ -203,7 +206,8 @@ subversion <- 1
 #write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.01_Depth_10_Cols_0.5_SubSample_0.7_MinChildWeight_7_Alpha_4_Version_", subversion, ".csv", collapse = ""))
 
 # still need to submit on own
-write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.01_Depth_10_Cols_0.5_SubSample_0.7_MinChildWeight_6_Alpha_4_Version_", subversion, ".csv", collapse = ""))
+#write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.01_Depth_10_Cols_0.5_SubSample_0.7_MinChildWeight_6_Alpha_4_Version_", subversion, ".csv", collapse = ""))
+write_csv(sub, paste0(path, "/output/XGBoost/submission_XGBoost_FullData_FullTrain_Eta_0.01_Depth_9_Cols_0.5_SubSample_0.7_MinChildWeight_6_Alpha_4_Gamma_2_Version_", subversion, ".csv", collapse = ""))
 
 
 
